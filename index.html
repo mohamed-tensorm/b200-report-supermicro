@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B200 Node Burn-In and GPU 4 Diagnostic Report — s946907x5206414</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ======================= PASSWORD GATE ======================= -->
+<div id="gate" role="dialog" aria-labelledby="gate-title">
+  <form class="gate-card" id="gate-form" autocomplete="off">
+    <h1 id="gate-title">B200 Node Burn-In Report</h1>
+    <p class="small">Node <span class="mono">s946907x5206414</span> · Supermicro JumpStart · Tensor Machines stress recipe</p>
+    <label for="pw">Access password</label>
+    <input id="pw" type="password" autocomplete="current-password" required autofocus>
+    <div class="gate-err" id="gate-err" aria-live="polite"></div>
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Open report</button>
+    </div>
+    <p class="gate-note">This is a basic client-side access gate for a static page. It limits casual access only; it is not encryption and does not prevent a technically capable person from inspecting the page source or data files. Access is remembered for this browser tab session.</p>
+  </form>
+</div>
+
+<!-- ======================= REPORT ======================= -->
+<div id="report" class="hidden">
+<div class="topbar no-print">
+  <div class="topbar-inner">
+    <div class="brand">B200 burn-in &amp; GPU 4 diagnostic <span>s946907x5206414</span></div>
+    <div class="actions">
+      <button class="btn primary" id="btn-pdf" type="button" title="Opens the browser print dialog; choose “Save as PDF”">Download PDF</button>
+      <button class="btn" id="btn-lock" type="button">Lock report</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+<nav class="toc" aria-label="Report sections">
+  <div class="toc-h">Decision</div>
+  <a href="#exec">Executive assessment</a>
+  <a href="#claims">Claim verification</a>
+  <a href="#findings">Major findings</a>
+  <div class="toc-h">Context</div>
+  <a href="#tested">What was tested</a>
+  <a href="#method">Methodology</a>
+  <div class="toc-h">Evidence</div>
+  <a href="#gpu4">GPU 4 failure analysis</a>
+  <a href="#phases">Phase-by-phase results</a>
+  <a href="#subsystems">Subsystem assessment</a>
+  <a href="#integrated">Integrated vs isolated</a>
+  <a href="#boundary">Boundary behavior</a>
+  <div class="toc-h">Action</div>
+  <a href="#beyond">Beyond pass/fail</a>
+  <a href="#guidance">Deployment guidance</a>
+  <div class="toc-h">Appendix</div>
+  <a href="#appendix">Evidence appendix</a>
+  <a href="#compare">vs. conventional report</a>
+</nav>
+
+<main>
+
+<header class="report-head">
+  <div class="print-head"><span>Tensor Machines · GPU stress recipe assessment</span><span>Node s946907x5206414 · Supermicro B200 · 2026-10-08/09</span></div>
+  <div class="section-kicker">Hardware burn-in and failure diagnostic</div>
+  <h1>Supermicro B200 node s946907x5206414: progressive stress assessment and GPU 4 failure analysis</h1>
+  <p class="lead">Eight-GPU NVIDIA B200 node evaluated with the Tensor Machines progressive stress recipe across four assessment runs on 2026-10-08 and 2026-10-09 (UTC). Seven GPUs behaved uniformly and within expectation. GPU 4 was thermally abnormal at idle before any load, ran at its minimum clock under every workload, and left the PCIe bus during the memory-bandwidth phase of the full assessment. The node then required a reboot and did not return.</p>
+  <div class="meta">
+    <div><span>Node</span>s946907x5206414 (hostname = chassis serial)</div>
+    <div><span>Platform</span>Supermicro B200 system (profile <span class="mono">b200-sys-a22ga-nbrt</span>), 8× NVIDIA B200 183,359 MiB</div>
+    <div><span>Driver / CUDA</span>595.91.07 open kernel module · CUDA 13.2 (host), 13.4 (containers)</div>
+    <div><span>Assessment window</span>2026-10-08 19:29 → 2026-10-09 06:20 UTC, four runs, 2 h 21 min of archived telemetry</div>
+    <div><span>Failed device</span>GPU 4 · PCI 0000:97:00.0 · serial 1650325000848 · UUID GPU-9368f498-fb72-6417-9dc0-1a2ce1ff1b81</div>
+    <div><span>Failure event</span>2026-10-09 06:01:44 UTC · Xid 79 “GPU has fallen off the bus” · phase 3 (1B HBM bandwidth)</div>
+    <div><span>Report prepared</span>2026-10-16 · Tensor Machines · for the Supermicro JumpStart team</div>
+    <div><span>Recipe version</span>Tensor Stress Recipe, May 2026 (written for V100; B200 execution profile differs, see <a href="#deviations">deviations</a>)</div>
+  </div>
+  <p class="confidential">Evidence basis: NVML telemetry at ~2 Hz per GPU, IPMI/BMC chassis telemetry at ~1.5–3 s, per-workload result files, driver run logs, kernel <span class="mono">dmesg</span>/<span class="mono">journalctl</span> extracts. BMC System Event Log (SEL) was not available. No post-reboot data exists.</p>
+</header>
+
+<!-- ======================= EXECUTIVE ======================= -->
+<section id="exec">
+  <div class="section-kicker">1 · Decision layer</div>
+  <h2>Executive assessment</h2>
+
+  <div class="status-row">
+    <div class="status-card critical">
+      <div class="k">GPU 4 (97:00.0)</div>
+      <div class="v">Failed — not serviceable in current state</div>
+      <div class="d">Thermally abnormal at idle in every snapshot (71–82 °C, 220–239 W at 0 % utilization vs 33–43 °C, 188–205 W for peers). Ran at 120 MHz with hardware thermal slowdown under all load. Delivered 5–6 % of peer throughput. Dropped off PCIe slot 105 at 06:01:44 UTC.</div>
+    </div>
+    <div class="status-card good">
+      <div class="k">GPUs 0–3, 5–7</div>
+      <div class="v">Healthy and uniform up to the failure</div>
+      <div class="d">GEMM 1,177–1,229 TFLOPS FP16 (±2.2 %), HBM 6.50/7.57/6.58 TB/s read/write/copy, zero ECC, no thermal throttling, cooldown to idle within 60 s. Power-cap-bound at the 1,000 W limit — expected for B200.</div>
+    </div>
+    <div class="status-card serious">
+      <div class="k">Node</div>
+      <div class="v">Down — reboot required, did not return</div>
+      <div class="d">After GPU 4 left the bus, the driver flagged all eight GPUs “Node Reboot Required” (Xid 154). New CUDA contexts failed for the rest of the run. The node did not come back after reboot. No post-failure measurements exist.</div>
+    </div>
+    <div class="status-card neutral">
+      <div class="k">Assessment coverage</div>
+      <div class="v">Baseline tier partially completed; Tier 2/3 not reached</div>
+      <div class="d">Completed: idle baseline, warm-up GEMM, 1A GEMM, 1C inference (×2 runs), 2A inference (×1 run, 7 GPUs). 1B ran to completion on 7 GPUs but the phase is recorded as failed. 2B–2E, 3A, 3B and NVLink were never executed.</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h3>Major strengths (seven peer GPUs)</h3>
+      <ul>
+        <li><b>Compute uniformity.</b> Sequential FP16 GEMM sustained 1,176.7–1,228.8 TFLOPS across the seven GPUs; each GPU repeated its warm-up result within 0.2–0.8 % in the later 1A phase despite a different thermal context (concurrent vs sequential).</li>
+        <li><b>Memory subsystem.</b> HBM read 6,495–6,510 GB/s, write 7,566–7,569 GB/s, copy 6,572–6,584 GB/s (six GPUs reported before the phase aborted) — a spread of 0.2 %. Zero ECC correctable or uncorrectable errors on every GPU in every run; zero remapped rows.</li>
+        <li><b>Integrated inference.</b> 1C (Llama-3-8B INT8) 15,297–15,427 tok/s per GPU with 0.8 % spread; 2A (Llama-2-13B INT8, FP8 KV) 4,052–4,179 tok/s with 3.1 % spread and ITL p99 44.7–45.4 ms. Silent-data-corruption probe: 100 % cross-GPU agreement.</li>
+        <li><b>Thermal headroom.</b> Peak peer temperatures 62–75 °C under 1,000 W load, 45–51 °C below the slowdown limit at idle; return to idle temperature within 60 s of load removal; idle-to-idle drift ≤ 1 °C.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Material concerns</h3>
+      <ul>
+        <li><b>GPU 4 was abnormal before any load</b> and in every subsequent idle window: 35–40 °C hotter than its neighbours at 0 % utilization with identical inlet air (33 °C) and fan speed. Its driver counters show 10.5 h of accumulated thermal slowdown before our first archived run.</li>
+        <li><b>GPU 4 failed hard, not gracefully.</b> No ECC, PCIe replay, or AER precursor appears in the available logs; the transition from “slow but running” to “off the bus” was abrupt (one 0.5 s telemetry interval).</li>
+        <li><b>Blast radius was the whole node.</b> A single GPU leaving the bus made all eight GPUs require a node reboot and blocked every subsequent CUDA workload. The node then failed to return — root cause of the non-return is not measured.</li>
+        <li><b>Chassis fan response.</b> System fans held ~11.6 k RPM throughout every run and did not increase while the HGX board reported a GPU 19–30 °C above the others and a negative thermal-limit margin. Whether the fan policy is expected on this platform is a vendor question.</li>
+        <li><b>BMC sensor <span class="mono">MB_FAN2</span> read 0 RPM with status <span class="mono">cr</span> (critical)</b> in all four captures. It may be an unpopulated header; it is listed here because it is a standing critical sensor state on the node.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Deployment recommendation</h3>
+    <p><b>Do not return GPU 4 to service in its current state.</b> The evidence — elevated idle temperature with 0 % utilization over at least 16 hours, 11.1 h of cumulative thermal slowdown, 5–6 % of peer throughput, and a PCIe link-down event — is consistent across four independent runs and three independent sources (NVML, BMC HGX sensors, kernel log). It supports vendor inspection of the GPU 4 module, its thermal interface/cold-plate contact, and its PCIe path (root port 96:00.0, slot 105). Whether that results in a reseat, thermal rework, or module replacement is a vendor determination; the data does not distinguish between a module-internal fault and a mounting/contact fault.</p>
+    <p><b>The seven peer GPUs are deployable</b> once the node is restored, with no workload restrictions indicated by the data. Their Tier 2 and Tier 3 behaviour (training write path, boundary probes, NVLink) is <em>untested</em>, not passed — see <a href="#guidance">deployment guidance</a>.</p>
+    <p><b>The node itself is not deployable until the non-return after reboot is diagnosed.</b> This report has no data on that event.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Recommended next actions</h3>
+    <ol>
+      <li><b>Pull BMC SEL and Redfish logs</b> (not available to us) for 2026-10-08 14:00 → 2026-10-09 12:00 UTC. This is the most direct way to confirm or rule out a PCIe/power event on GPU 4 and to explain the failed reboot.</li>
+      <li><b>Inspect GPU 4 and its path</b>: module seating, thermal interface and cold-plate contact, any local airflow obstruction, PCIe slot 105 / root port 0000:96:00.0 and any retimer in that path.</li>
+      <li><b>Collect <span class="mono">nvidia-bug-report</span> and GPU 4 InfoROM/XID history</b> if the device can be enumerated again; compare its idle temperature against peers before any load.</li>
+      <li><b>Explain the standing <span class="mono">MB_FAN2 = 0 RPM (cr)</span> sensor</b> and confirm the platform fan-control policy under a hot-GPU condition.</li>
+      <li><b>After repair, re-run the full recipe</b> starting with a 2 min idle baseline: GPU 4 (or its replacement) should idle within a few degrees of its neighbours and complete 1A at 1,170–1,230 TFLOPS. Then complete Tier 2/3 and NVLink for all eight GPUs.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ======================= CLAIMS ======================= -->
+<section id="claims">
+  <div class="section-kicker">2 · Verification of statements already made to Supermicro</div>
+  <h2>Claim verification</h2>
+  <p>Each statement is tested against the archived telemetry and logs. Where a statement is overstated or misstated, it is flagged.</p>
+
+  <div class="callout critical">
+    <div class="t">Flag: claim 1 contains a unit error</div>
+    <p>“220 MHz” is not supported by any telemetry. GPU 4’s idle clock was 120 MHz — the same as all seven peers. The number 220 comes from the provisioning <span class="mono">nvidia-smi</span> snapshot on 2026-10-08, which shows GPU 4 at <b>71 °C and 220 W</b> (power draw, not clock). Correct the statement to “idle at ~71 °C and ~220 W” — the corrected claim is fully confirmed and is in fact stronger in later snapshots (76–82 °C, 228–239 W).</p>
+  </div>
+
+  <div class="tbl-wrap">
+  <table class="matrix">
+    <thead><tr><th style="width:26%">Claim</th><th style="width:14%">Verdict</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1. GPU 4 was anomalous before any load: idle at ~71 °C and 220 MHz.</td>
+        <td><span class="badge partial">Partially supported</span><br><small>Temperature confirmed; “MHz” is a unit error (should be W)</small></td>
+        <td>Provisioning snapshot (2026-10-08 ~14:20 UTC, <span class="mono">nvidia-smi</span>): GPU 4 <b>71 °C, 220 W, 0 %</b> util; peers 33–38 °C, 188–198 W. Idle baselines in all four runs: GPU 4 76/82/80/77 °C and 228/238/236/231 W vs peers 37–44 °C and 191–206 W. Idle graphics clock 120 MHz on all eight GPUs in every idle window. HBM temperature at idle 72–77 °C vs 36–44 °C. T.Limit margin 6–12 °C vs 45–51 °C. <a href="#idle-chart">Chart</a> · <a href="#tbl-idle">Table</a></td>
+      </tr>
+      <tr>
+        <td>2. GPU 4 was weak under stress compared with the other seven GPUs.</td>
+        <td><span class="badge confirmed">Confirmed</span><br><small>and understated</small></td>
+        <td>GEMM: 66.4 TFLOPS (warm-up) and 71.6 TFLOPS (1A) vs 1,174–1,229 for peers — <b>5.5–6.0 %</b> of peer throughput. 1C inference (run 1): 971 tok/s vs 15,748–16,304; TTFT p50 47.4 s vs 0.71–0.83 s; 1,024 scored prompts vs ~7,160. Cause visible in telemetry: graphics clock pinned at 120 MHz with throttle reasons HW Slowdown + HW Thermal + SW Thermal (bitmask 104) at 88–96 °C. Output correctness was not affected (SDC probe 100 % agreement). <a href="#gemm-chart">Chart</a></td>
+      </tr>
+      <tr>
+        <td>3. During a multi-workload run, CUDA stopped seeing the GPUs and the node needed a reboot. After the reboot, the node did not come back online.</td>
+        <td><span class="badge partial">Partially supported</span><br><small>First two parts confirmed with nuance; third part not measured</small></td>
+        <td>Run 4, 06:01:44 UTC: Xid 79 on GPU 4, then Xid 154 “GPU recovery action changed … Node Reboot Required” on <b>all eight</b> GPUs. Every later container reported “No CUDA devices” (phases 4, 6, 8, 9, 10, 13, 14). <b>Nuance:</b> already-running CUDA contexts on the seven peers survived — they completed the full 900 s of 1B at 98 % utilization (NVML) and six printed results; the <em>container</em> then exited with <span class="mono">CUDA_ERROR_UNKNOWN</span> on the GPU 4 worker. Kernel log continues to 11:08:39 UTC (node up ≥ 5 h after the event). The reboot itself and the non-return are <b>not in any archived source</b>.</td>
+      </tr>
+      <tr>
+        <td>4. Working hypothesis: GPU 4 dropped off the PCIe bus (indication, not confirmed root cause).</td>
+        <td><span class="badge confirmed">Confirmed as event</span><br><small>Root cause remains open</small></td>
+        <td>Kernel log, 6 ms before Xid 79: <span class="mono">pcieport 0000:96:00.0: pciehp: Slot(105): Link Down</span> and <span class="mono">Slot(105): Card not present</span>, then <span class="mono">Xid 79 … name=irq/123-pciehp, GPU has fallen off the bus</span>. The <em>event</em> is therefore confirmed by the OS-side PCIe hot-plug controller, not inferred from the Xid alone. <b>What is not confirmed:</b> why the link went down — GPU-side protective shutdown at 96 °C, board power, slot/retimer, or mechanical. No AER or PCIe replay errors precede it in the captured logs. BMC SEL is the direct source and was not available. <a href="#pcie">Detail</a></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ======================= FINDINGS ======================= -->
+<section id="findings">
+  <div class="section-kicker">3 · Major findings</div>
+  <h2>Major findings and operational implications</h2>
+  <p>Severity describes operational impact. Confidence describes how strongly the available evidence supports the finding, based on the number of independent runs and sources that agree.</p>
+
+  <div class="finding">
+    <div class="f-head"><h3>F1 · GPU 4 was thermally abnormal at idle, before any load, in every capture</h3><span class="badge critical">Severity: critical</span><span class="badge confirmed">Confidence: high — 5 snapshots, 3 sources</span></div>
+    <div class="f-meta"><span><b>Phase</b> 0 Idle Baseline (all runs), provisioning snapshot</span><span><b>Subsystem</b> Thermal / power</span><span><b>Runs</b> provisioning, R1–R4</span></div>
+    <p>At 0 % utilization and 120 MHz, GPU 4 read 71–82 °C junction and 72–77 °C HBM, drawing 220–239 W, while its seven peers read 33–44 °C and 188–206 W under the same 32–34 °C inlet and the same fan speed. The driver reported a thermal-limit margin of 6–12 °C for GPU 4 versus 45–51 °C for peers. The BMC’s HGX board sensor (maximum GPU temperature across the board) tracked GPU 4 exactly (77 °C at idle). The condition persisted across 16 h and through 7 h idle gaps between runs, so it is not residual heat from a prior workload.</p>
+    <p><b>Why it matters.</b> An idle device 35–40 °C above peers with ~35 W extra idle draw is the signature expected from a heat-removal problem (interface, contact, or local airflow) or a module-internal fault. This was detectable with a two-minute idle snapshot — no stress workload was required to flag GPU 4 as unfit for load. It is the single highest-value observation in this assessment.</p>
+    <div class="evidence">Evidence: <a href="#idle-chart">idle temperature chart</a> · <a href="#tbl-idle">per-run idle table</a> · <span class="mono">*_nvml_metadata.txt</span> (T.Limit, HBM temp) · <span class="mono">provision/26-10-08_14-20_run_provision_and1C.log</span> line ~207</div>
+  </div>
+
+  <div class="finding">
+    <div class="f-head"><h3>F2 · Under load GPU 4 pinned at its minimum clock with hardware thermal slowdown and delivered ~6 % of peer throughput</h3><span class="badge critical">Severity: critical</span><span class="badge confirmed">Confidence: high — 3 workloads, 2 runs</span></div>
+    <div class="f-meta"><span><b>Phases</b> 1 warm-up GEMM, 2 1A GEMM, 4 1C inference</span><span><b>Subsystem</b> Compute, clocks, throttling</span><span><b>Runs</b> R1, R4</span></div>
+    <p>Within two seconds of load the junction rose from 78 to 89 °C and the graphics clock fell from a momentary 855 MHz to 120 MHz, where it stayed for the duration of every workload. NVML throttle reasons read 32 (SW thermal) then 104 (HW slowdown + HW thermal + SW thermal). Power under load was 290–330 W versus 995 W for peers at the power cap. Resulting application throughput: 66–72 TFLOPS FP16 vs 1,177–1,229; 971 tok/s vs ~16,000 in 1C. GPU 4’s sequential 1A slot took 860 s instead of 280 s because its 20 warm-up iterations ran at 1/17th speed, extending the whole phase by ~10 min.</p>
+    <p><b>Why it matters.</b> The device was not “slow”; it was in protective thermal clamp. Any job placed on it would have run at a few percent of expected speed while reporting 100 % utilization — a condition that scheduler-level health checks (utilization, ECC, XID) would not catch. The SDC probe showed its outputs remained correct.</p>
+    <div class="evidence">Evidence: <a href="#gemm-chart">GEMM per-GPU chart</a> · <a href="#r4-timeline">full-run timeline</a> · <a href="#r1-timeline">1C timeline</a> · <span class="mono">results/26-10-09_05-11_workload1_metadata.json</span> · <span class="mono">results/26-10-08_19-30_workload8_metadata.json</span></div>
+  </div>
+
+  <div class="finding">
+    <div class="f-head"><h3>F3 · GPU 4 left the PCIe bus abruptly 187 s into the HBM bandwidth phase at 96 °C; no precursor error counters</h3><span class="badge critical">Severity: critical</span><span class="badge confirmed">Confidence: high for the event — kernel pciehp + Xid 79 + telemetry stop agree to the second</span></div>
+    <div class="f-meta"><span><b>Phase</b> 3 1B Memory Bandwidth</span><span><b>Subsystem</b> PCIe, thermal</span><span><b>Run</b> R4</span></div>
+    <p>GPU 4 began 1B at 87 °C, reached 96 °C by 06:01:05 and was still reporting 100 % utilization, 120 MHz and 324 W at its last NVML sample (06:01:43.722). The kernel logged <span class="mono">Slot(105): Link Down</span> / <span class="mono">Card not present</span> at 06:01:44, then Xid 79. ECC counters were 0/0 in the last sampled interval; PCIe replay counters were 0 at run start; no AER messages appear in the captured kernel log. There was no gradual degradation visible in the 0.5 s telemetry — the device was present on one sample and gone on the next.</p>
+    <p><b>Why it matters.</b> The failure mode was a hard disconnect, not a graceful degradation. The recipe’s normal precursor signals (ECC growth, bandwidth droop, clock drift) did not appear because GPU 4 never left thermal clamp long enough to exercise them. The root cause of the link-down — a protective GPU shutdown, a power event, or a connector/retimer issue — is not determinable from host-side data.</p>
+    <div class="evidence">Evidence: <a href="#xid">XID table</a> · <a href="#pcie">PCIe hypothesis</a> · <span class="mono">provision/26-10-09_dmesg_XidPciError.log</span> lines 3058–3065 · <span class="mono">26-10-09_04-35_nvml_telemetry.csv</span> (GPU 4 last row)</div>
+  </div>
+
+  <div class="finding">
+    <div class="f-head"><h3>F4 · The single-GPU failure took down CUDA for the whole node and required a reboot</h3><span class="badge serious">Severity: serious</span><span class="badge confirmed">Confidence: high</span></div>
+    <div class="f-meta"><span><b>Phases</b> 3–14</span><span><b>Subsystem</b> Node / driver</span><span><b>Run</b> R4</span></div>
+    <p>Within 25 ms of Xid 79 the driver raised Xid 154 (“Node Reboot Required”) on all eight GPUs. The seven peers kept executing their already-launched 1B kernels for the remaining 12 minutes, but every new container failed CUDA initialization. UVM logged “global fatal error 0x60, requiring os reboot” at 06:13:49 and again at 11:08:38. The node stayed up and logging for at least 5 h; the subsequent reboot and the non-return are not captured.</p>
+    <p><b>Why it matters.</b> For a shared or multi-tenant node, one unhealthy GPU is a node-level availability risk, not a 1/8 capacity loss. Operators should treat a GPU that idles abnormally hot as grounds to fence the device before scheduling work on the node.</p>
+    <div class="evidence">Evidence: <a href="#xid">XID table</a> · <span class="mono">26-10-09_04-35_run_all_loop1.log</span> phases 4–14 · <span class="mono">provision/26-10-09_journalctl_XidPciError.log</span></div>
+  </div>
+
+  <div class="finding">
+    <div class="f-head"><h3>F5 · The seven peer GPUs are uniform, repeatable and power-cap-bound; no degradation signal</h3><span class="badge good">Severity: none (positive)</span><span class="badge confirmed">Confidence: high for Tier 1 and 2A — single run each; Tier 2B–3 untested</span></div>
+    <div class="f-meta"><span><b>Phases</b> 1, 2, 3, 4, 6</span><span><b>Subsystems</b> Compute, HBM, thermal, power, clocks</span><span><b>Runs</b> R1–R4</span></div>
+    <p>GEMM sustained 1,176.7–1,228.8 TFLOPS (±2.2 % about the mean); each GPU’s 1A result matched its own warm-up result within 0.8 %. GPU 2 was consistently the lowest (~2.5 % below mean) and GPUs 3 and 5 the highest in both exposures — a stable per-device fingerprint, not noise. All seven ran at the 1,000 W power limit (throttle reason 4, SW power cap) at 985–1,114 MHz; none reached a thermal limit (peak 63–75 °C). HBM 6.50/7.57/6.58 TB/s with 0.2 % spread; zero ECC. Inference 0.8 % (1C) and 3.1 % (2A) spread. Cooldown to within 2 °C of idle in 60 s.</p>
+    <p><b>Why it matters.</b> These numbers are the baseline fingerprint against which the repaired node should be re-measured. Any peer later moving more than ~2 % on GEMM or 1 % on HBM would be a real change.</p>
+    <div class="evidence">Evidence: <a href="#gemm-chart">GEMM chart</a> · <a href="#tbl-1b">1B table</a> · <a href="#tbl-inf">inference tables</a> · <a href="#cooldown-chart">cooldown chart</a></div>
+  </div>
+
+  <div class="finding">
+    <div class="f-head"><h3>F6 · Chassis cooling did not respond to the hot GPU; one motherboard fan sensor reads 0 RPM (critical)</h3><span class="badge warn">Severity: moderate — vendor question</span><span class="badge partial">Confidence: medium — observed in all runs, but platform policy unknown</span></div>
+    <div class="f-meta"><span><b>Phases</b> all</span><span><b>Subsystem</b> Cooling / fans (BMC)</span><span><b>Runs</b> R1–R4</span></div>
+    <p>The 15 system fans held 11,583–11,751 RPM (mean) across all four runs — flat through idle, 1,000 W × 7 load, and while the HGX board reported GPU temperature 91–96 °C and a T-Limit margin of −8 °C. PSU fans likewise ~11.3–11.4 k RPM. <span class="mono">MB_FAN2</span> reported 0 RPM with sensor status <span class="mono">cr</span> in every capture (lower-critical threshold 420 RPM). Inlet stayed 32–39 °C.</p>
+    <p><b>Why it matters.</b> If fan speed is managed from inlet/board temperature only, a single GPU with a degraded thermal path receives no additional cooling. Whether this is the intended policy on this platform, and whether <span class="mono">MB_FAN2</span> is an unpopulated header, is for Supermicro to confirm. It is not asserted here as a defect.</p>
+    <div class="evidence">Evidence: <a href="#bmc-chart">BMC timeline</a> · <span class="mono">*_bmc_metadata.txt</span> (MB FAN2 … 0.000 RPM cr) · <span class="mono">*_bmc_telemetry.csv</span></div>
+  </div>
+
+  <div class="finding">
+    <div class="f-head"><h3>F7 · A prior MMU fault (Xid 31) and 10.5 h of accumulated thermal slowdown on GPU 4 predate the archived runs</h3><span class="badge serious">Severity: contextual</span><span class="badge partial">Confidence: medium — counters and kernel log, but the originating workloads are not archived</span></div>
+    <div class="f-meta"><span><b>Source</b> Driver counters, kernel log</span><span><b>Subsystem</b> GPU 4 history</span></div>
+    <p>At the first archived run (19:29 UTC, Oct 8) GPU 4’s driver counters already showed 37,680 s of SW thermal slowdown and 406 s of HW thermal slowdown since driver load (boot ≈ Oct 3 15:47 UTC); peers showed 0 s. By 04:35 Oct 9 these had grown to 40,116 s and 1,096 s. The kernel logged Xid 31 (MMU page-table fault, graphics engine, process <span class="mono">python</span>) on GPU 4 at 18:58:46 UTC Oct 8 — 31 min before run 1, during an unarchived experiment. A provisioning-time 1C run (14:21 UTC, 81 min, all 8 GPUs) exists as a log only.</p>
+    <p><b>Why it matters.</b> GPU 4’s condition was long-standing within the node’s uptime, not induced by this assessment. Xid 31 on an otherwise-correct device is a note for the vendor; on its own it does not establish a memory fault.</p>
+    <div class="evidence">Evidence: <a href="#xid">XID table</a> · <span class="mono">*_nvml_metadata.txt</span> “Clocks Event Reasons Counters”</div>
+  </div>
+</section>
+
+<!-- ======================= WHAT WAS TESTED ======================= -->
+<section id="tested" class="break">
+  <div class="section-kicker">4 · Context</div>
+  <h2>What was tested</h2>
+
+  <h3>Hardware and software configuration</h3>
+  <div class="tbl-wrap"><table>
+    <tbody>
+      <tr><td style="width:28%">Node</td><td><span class="mono">s946907x5206414</span>; hostname matches chassis serial. Supermicro B200 platform (suite profile <span class="mono">b200-sys-a22ga-nbrt</span>). Provided through the Supermicro JumpStart program.</td></tr>
+      <tr><td>GPUs</td><td>8× NVIDIA B200, 183,359 MiB each (178.3 GB usable reported by CUDA), 148 SMs, compute capability 10.0, VBIOS 97.00.FA.00.09, InfoROM G525.0220.00.03. Power limit 1,000 W (default = max). PCIe Gen 5 ×16 current/max on all eight at capture start. NVLink fabric state “Completed / Success / Healthy” on all eight.</td></tr>
+      <tr><td>GPU → PCI → serial</td><td class="mono" style="font-size:.8rem">0 17:00.0 1650325007217 · 1 3D:00.0 1650325004739 · 2 5F:00.0 1650225103828 · 3 70:00.0 1650225068490 · <b>4 97:00.0 1650325000848</b> · 5 BA:00.0 1650325000838 · 6 DC:00.0 1650225094316 · 7 ED:00.0 1650225120214</td></tr>
+      <tr><td>Host software</td><td>Ubuntu 24.04.1 LTS, kernel 6.8.0-146-generic, NVIDIA driver 595.91.07 (open kernel module, packages held), CUDA 13.2, Fabric Manager 595, Docker 29.8.2, NVIDIA Container Toolkit 1.19.0, ipmitool 1.8.19. NTP active; all timestamps UTC.</td></tr>
+      <tr><td>Container software</td><td>LLM workloads: vLLM 0.29.0 (nv26.9), PyTorch 2.14.0a0 (nv26.09), CUDA 13.4, MPS enabled, seed 0, greedy decoding. Microbenchmarks: PyTorch 2.14.0a0 / CUDA 13.4. Each workload is a separate Docker image built at run start.</td></tr>
+      <tr><td>Chassis telemetry</td><td>IPMI sensors: 15 system fans, 4 MB fans, 6 PSU fans + status, CPU/VRM/DIMM/PLX/NVMe/inlet temperatures, HGX board aggregate sensors (<span class="mono">HGX_GPU_Temp</span>, <span class="mono">HGX_HBM_Temp</span>, <span class="mono">HGX_T-Limit</span>, <span class="mono">HGX_NVLink_Temp</span>, <span class="mono">HGX_Inlet_Temp</span>). <b>No per-GPU power or temperature sensors are exposed by this BMC</b>; per-GPU data comes from NVML only.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Assessment runs</h3>
+  <p>Four runs are archived. Runs 1–3 were single-workload development runs with 5 s idle/cooldown windows; run 4 was the full overnight profile with 120 s idle/cooldown windows. GPU 4 was excluded from the workload (but not from telemetry) in runs 2 and 3 after its behaviour in run 1.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Run</th><th>Run ID (UTC)</th><th>Wall time</th><th>Workloads executed</th><th>GPUs in workload</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>P</td><td class="mono">26-10-08_14-21-52</td><td>81 min</td><td>1C LLM inference (provisioning check)</td><td>8</td><td>Completed; log only, results not archived. Contains the <span class="mono">nvidia-smi</span> snapshot showing GPU 4 at 71 °C / 220 W idle.</td></tr>
+      <tr><td>R1</td><td class="mono">26-10-08_19-29-42</td><td>21 min</td><td>1C LLM inference (batch 1024, 1 instance/GPU, 420 s)</td><td>8</td><td>Completed. GPU 4 at 6 % of peer throughput.</td></tr>
+      <tr><td>R2</td><td class="mono">26-10-09_02-49-59</td><td>7 min</td><td>1C LLM inference (batch 448, 2 instances/GPU, 180 s)</td><td>7 (GPU 4 excluded)</td><td>Completed.</td></tr>
+      <tr><td>R3</td><td class="mono">26-10-09_03-47-49</td><td>8 min</td><td>2A LLM inference (batch 80, 2 instances/GPU, 240 s)</td><td>7 (GPU 4 excluded)</td><td>Completed.</td></tr>
+      <tr class="gpu4"><td>R4</td><td class="mono">26-10-09_04-35-46</td><td>104 min 29 s</td><td>Full profile: idle, warm-up GEMM, 1A, 1B, 1C, 2A, 2C, 2D, 2E, 3B, NVLink (2B and 3A skipped by option)</td><td>8</td><td>Failed at phase 3 (1B) — GPU 4 off bus 06:01:44. Phases 4–14 failed “No CUDA devices”. Idle/cooldown windows completed for 7 GPUs.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Phase coverage</h3>
+  <div id="coverage-matrix"></div>
+  <p class="tbl-note">● completed · ◐ ran but recorded failed (7 GPUs completed the workload) · ✕ failed, no CUDA devices · – skipped by configuration · idle windows contain telemetry only.</p>
+
+  <h3 id="deviations">Deviations from the recipe document</h3>
+  <p>The recipe document (May 2026) targets V100 32 GB. The B200 execution is defined by the suite’s <span class="mono">b200-180gb</span> GPU profile and the run manifests; where they differ, the execution is authoritative. The B200 profile file itself is not in the source folder — its parameters below are reconstructed from the manifests, result metadata and run logs. (An <span class="mono">h200-141gb.json</span> profile is present but does not match what ran and is not used.)</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Item</th><th>Recipe document (V100)</th><th>B200 execution</th><th>Effect on interpretation</th></tr></thead>
+    <tbody>
+      <tr><td>1A / warm-up GEMM</td><td>torch.mm 8192³ FP16, 240 s per GPU; warm-up = 1C at half duration</td><td>Batched FP16 GEMM, batch 4 × 65536², 2.25 PFLOP/iteration; 20 warm-up iterations; warm-up phase = same GEMM 180 s concurrent on 8 GPUs; 1A = 240 s sequential</td><td>Warm-up and 1A are directly comparable (same kernel) — used here as a repeatability check. Iteration time ~2 s on a healthy B200, ~31 s on GPU 4.</td></tr>
+      <tr><td>1B HBM bandwidth</td><td>Two 14 GB buffers, device copy, 300 s</td><td>32 GB buffer; read, write and copy modes, 300 s each (900 s total)</td><td>Three bandwidth figures per GPU instead of one.</td></tr>
+      <tr><td>1C inference</td><td>Llama-3-8B INT8, batch 16, seq 1024, gen 128, 7 min</td><td>R1: batch 1024, seq 128, gen 1024, 1 instance, 420 s. R2: batch 448, seq 128, gen 1024, 2 instances, 180 s. vLLM 0.29 instead of 0.5.4</td><td>R1 and R2 are not directly comparable to each other (different batch/instances/duration). Both are far above the recipe’s memory-pressure intent.</td></tr>
+      <tr><td>2A inference</td><td>Llama-2-13B INT8 (AWQ), batch 16, seq 2048, gen 256, 15 min</td><td>Llama-2-13B GPTQ-INT8 with FP8 KV cache, batch 80, seq 256, gen 2048, 2 instances, 240 s</td><td>Documented in metadata as a method deviation (AWQ toolchain conflict). Diagnostic intent (HBM pressure) preserved in spirit; numbers not comparable to the V100 table.</td></tr>
+      <tr><td>Idle / cooldown windows</td><td>2 min each</td><td>R1–R3: 5 s. R4: 120 s</td><td>Thermal-decay curves exist only for R4 and only for the 7 peers.</td></tr>
+      <tr><td>2B, 3A</td><td>Executed</td><td>Skipped by <span class="mono">--skip 10,11</span> in R4; never run</td><td>Training write-path and near-limit memory behaviour untested.</td></tr>
+      <tr><td>2C–2E, 3B, NVLink</td><td>Executed</td><td>Attempted in R4 after the failure; all failed in 3–5 s with “No CUDA devices”</td><td>Convolution, FFT, random-access, sustained-power and NVLink behaviour untested.</td></tr>
+      <tr><td>Expected values</td><td>V100 figures (90–100 TFLOPS, 850–900 GB/s, 300 W)</td><td>Not applicable</td><td>No recipe-document number is used as a B200 expectation in this report. Peer-to-peer uniformity and run-to-run repeatability are the reference.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Missing, incomplete or invalid data</h3>
+  <ul>
+    <li><b>No post-failure, recovery or cooldown data for GPU 4</b>: its telemetry ends at 06:01:43.722 UTC. Cooldown and idle-to-idle comparisons in R4 cover seven GPUs.</li>
+    <li><b>No post-reboot data of any kind.</b> The reboot and the node’s failure to return are outside every archived source.</li>
+    <li><b>BMC SEL / Redfish event logs</b> were not available. This is the primary gap for the PCIe hypothesis.</li>
+    <li><b>1B result file is empty</b> (<span class="mono">status: failed, results: []</span>) although seven GPUs completed; the only bandwidth numbers are six unattributed result blocks in the run log.</li>
+    <li><b>BMC HGX sensors went blank</b> (<span class="mono">HGX_GPU_Temp</span>, <span class="mono">HGX_HBM_Temp</span>, <span class="mono">HGX_T-Limit</span>) from 06:02:10 UTC to the end of R4 — about 26 s after GPU 4 left the bus.</li>
+    <li><b>ECC and throttle-reason fields are sampled every ~5 s</b> (every 10th NVML row); blank cells mean “not polled”, not zero.</li>
+    <li><b>The provisioning 1C run and the run that produced Xid 31 are not archived</b>; only the provisioning log survives.</li>
+    <li><b>No per-GPU BMC power/thermal sensors</b> on this platform; chassis-side view of GPU 4 is limited to the HGX aggregate (maximum) sensors.</li>
+  </ul>
+</section>
+
+<!-- ======================= METHODOLOGY ======================= -->
+<section id="method">
+  <div class="section-kicker">5 · Methodology</div>
+  <h2>Benchmark methodology</h2>
+  <div class="grid-2">
+    <div class="panel">
+      <h3>Purpose</h3>
+      <p>The recipe treats a GPU node as a set of subsystems — compute, HBM, power delivery, thermal path, interconnect — each of which degrades with a distinct signature. Instead of a single pass/fail, it collects a <em>fingerprint</em>: how each GPU behaves relative to its peers and to itself across phases of increasing demand. The fingerprint is the input to later health classification; the first measurement establishes the reference.</p>
+      <h3>Three tiers</h3>
+      <ul>
+        <li><b>Baseline (Tier 1)</b> — 1A GEMM isolates compute; 1B isolates HBM; 1C is the first integrated workload (real LLM inference). Must be highly repeatable so that a 1–2 % move is meaningful.</li>
+        <li><b>Diagnostic (Tier 2)</b> — larger model inference (2A), training (2B, the only write-heavy workload), convolution, FFT and random-access microbenchmarks. Creates real thermal and memory pressure where degraded devices separate from healthy ones.</li>
+        <li><b>Boundary probe (Tier 3)</b> — near-limit memory pressure (3A) and sustained power (3B) to observe how gracefully the device behaves near limits. Not health classifiers; failure-proximity indicators.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Why both isolated and integrated workloads</h3>
+      <p>Microbenchmarks attribute a change to one subsystem but miss interactions. Model workloads exercise everything at once but cannot say what moved. Running both, in a fixed order, makes <em>which phases move</em> diagnostic: HBM degradation appears in 1B/2A/2B with 1A normal; compute degradation in 1A/1C/2A with 1B normal; thermal-interface and power-delivery problems in 3B and the cooldown curves; NVLink only in the collective test.</p>
+      <h3>Fixed ordering and telemetry windows</h3>
+      <p>Phases always run in the same order with idle and cooldown observation between them, because thermal history is itself a repeatable signal. Application metrics (TFLOPS, GB/s, tokens/s) come from the workload; temperature, clocks, power, utilization and ECC come from NVML at ~2 Hz for every phase including the idle ones, which have no application output.</p>
+      <h3>What this assessment can and cannot conclude</h3>
+      <ul>
+        <li>It <b>can</b> state the measured behaviour of each GPU under the executed phases, peer-relative divergence, and run-to-run repeatability where a phase ran twice.</li>
+        <li>It <b>can</b> establish the sequence and timing of the GPU 4 failure from three independent clocks.</li>
+        <li>It <b>cannot</b> state the physical root cause of GPU 4’s thermal condition or of the PCIe link-down; that requires BMC SEL, physical inspection and vendor diagnostics.</li>
+        <li>It <b>cannot</b> speak to training, boundary, or NVLink behaviour on any GPU — those phases did not execute.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= GPU 4 ======================= -->
+<section id="gpu4" class="break">
+  <div class="section-kicker">6 · Failure analysis</div>
+  <h2>GPU 4 failure analysis</h2>
+  <p class="lead">GPU 4 (PCI 0000:97:00.0, serial 1650325000848, slot 105 behind root port 0000:96:00.0) was never a healthy participant in this assessment. The timeline below runs from the earliest archived observation to the last kernel log line. Times are UTC.</p>
+
+  <h3>Timeline</h3>
+  <ol class="timeline">
+    <li><div class="tt">≈ 2026-10-03 15:47</div><div class="tl">Node boot (inferred)</div><div class="td">Kernel uptime at the failure was 483,278 s. Driver 595.91.07 loaded. All GPU 4 thermal-slowdown counters below accumulate from here.</div></li>
+    <li class="warn"><div class="tt">2026-10-08 ~14:20</div><div class="tl">Provisioning snapshot — GPU 4 already hot at idle</div><div class="td"><span class="mono">nvidia-smi</span>: GPU 4 71 °C, 220 W, 0 % util, P0; peers 33–38 °C, 188–198 W. No processes running. A provisioning 1C run (81 min, 8 GPUs) followed; its results are not archived.</div></li>
+    <li class="serious"><div class="tt">2026-10-08 18:58:46</div><div class="tl">Xid 31 on GPU 4 (MMU fault)</div><div class="td"><span class="mono">MMU Fault: ENGINE GRAPHICS HUBCLIENT_SKED … FAULT_PDE ACCESS_TYPE_VIRT_READ</span>, process <span class="mono">python</span> pid 376231. Originating workload not archived. No further Xid until the failure.</div></li>
+    <li class="serious"><div class="tt">2026-10-08 19:29:42</div><div class="tl">Run 1 start — idle baseline</div><div class="td">GPU 4 76 °C / 228 W / 120 MHz; HBM 72 °C; T.Limit margin 12 °C. Peers 37–41 °C / 191–201 W; HBM 36–40 °C; margin 47–51 °C. Driver counters: GPU 4 SW thermal slowdown 37,680 s, HW thermal slowdown 406 s; peers 0 s.</div></li>
+    <li class="serious"><div class="tt">19:32 – 19:39</div><div class="tl">Run 1 — 1C inference, 8 GPUs</div><div class="td">GPU 4 rises to 93 °C within seconds, graphics clock 120 MHz, throttle reasons 32 → 104, power 290 W mean. Throughput 971 tok/s vs 15,748–16,304 for peers; TTFT p50 47 s vs 0.7–0.8 s. SDC probe: outputs correct. Peers 62–75 °C peak at the 1,000 W cap.</div></li>
+    <li><div class="tt">19:50 – 02:49</div><div class="tl">7 h idle gap</div><div class="td">At the next capture GPU 4 is 82 °C / 238 W at 0 % utilization — hotter than before run 1, not cooler. HBM 77 °C. Margin 6 °C.</div></li>
+    <li><div class="tt">02:50 – 03:55</div><div class="tl">Runs 2 and 3 — 1C and 2A on 7 GPUs</div><div class="td">GPU 4 excluded from the workloads; telemetry continues: 79–82 °C, 234–240 W, 120 MHz, 0 % util throughout. Peers complete both workloads uniformly.</div></li>
+    <li class="serious"><div class="tt">04:35:46 – 04:56:27</div><div class="tl">Run 4 start — image builds, 120 s idle baseline</div><div class="td">GPU 4 77–78 °C / 231 W; counters now 40,116 s SW / 1,096 s HW thermal slowdown. BMC <span class="mono">HGX_GPU_Temp</span> 77 °C, <span class="mono">HGX_T-Limit</span> +10 °C.</div></li>
+    <li class="serious"><div class="tt">04:56:38</div><div class="tl">Warm-up GEMM begins (8 GPUs concurrent, 180 s)</div><div class="td">GPU 4: 78 → 89 °C in 2 s; clock 855 → 120 MHz within 8 s; throttle 4 → 32 → 104; power settles 330–345 W. Six iterations in 180 s, 66.4 TFLOPS sustained. Peers 1,174–1,222 TFLOPS. BMC T-Limit −3 °C.</div></li>
+    <li class="serious"><div class="tt">05:30:18 – 05:44:38</div><div class="tl">1A sequential GEMM — GPU 4’s slot</div><div class="td">860 s instead of ~280 s (20 warm-up iterations at ~31 s each). 71.6 TFLOPS sustained, 8 iterations. 91.8 °C mean, 94 °C max, 121 MHz mean, 301 W mean. Peers’ slots: 1,177–1,229 TFLOPS at 985–1,114 MHz, 995 W, 61–72 °C.</div></li>
+    <li class="serious"><div class="tt">05:58:37</div><div class="tl">1B HBM bandwidth begins (8 GPUs, 32 GB buffer)</div><div class="td">GPU 4 at 87 °C, allocates 70.4 GB like its peers, utilization 100 %, memory-controller utilization 4 % (peers 98 %), clock 120 MHz, ~320 W. Temperature climbs 90 → 93 → 96 °C over three minutes.</div></li>
+    <li class="critical"><div class="tt">06:01:43.722</div><div class="tl">Last NVML sample from GPU 4</div><div class="td">96 °C, 120 MHz, 323.6 W, util 100 %, throttle 104, ECC 0/0. Peers at 1,949 MHz, 857–892 W, 55–66 °C.</div></li>
+    <li class="critical"><div class="tt">06:01:44 (+0.735 s uptime 483278.735)</div><div class="tl">PCIe link down → Xid 79</div><div class="td"><span class="mono">pcieport 0000:96:00.0: pciehp: Slot(105): Link Down</span> · <span class="mono">Slot(105): Card not present</span> · nvidia-drm removes device 0x9700 · <span class="mono">Xid (PCI:0000:97:00): 79, pid=1865, name=irq/123-pciehp, GPU has fallen off the bus</span>. 25 ms later: Xid 154 “Node Reboot Required” on all eight GPUs. GSP heartbeat timeout, “Attempting to remove device 0000:97:00.0 with non-zero usage count!”.</div></li>
+    <li class="warn"><div class="tt">06:01:44 – 06:13:51</div><div class="tl">Peers finish 1B; container exits</div><div class="td">Seven GPUs continue at 98 % util / 1,949 MHz for the full 900 s. Six result blocks printed (read 6,495–6,510, write 7,566–7,569, copy 6,572–6,584 GB/s). Worker for GPU 4 raises <span class="mono">CUDA_ERROR_UNKNOWN</span> on <span class="mono">cuCtxSynchronize</span>; phase recorded failed. UVM: “global fatal error 0x60, requiring os reboot to recover” (06:13:49).</div></li>
+    <li class="warn"><div class="tt">06:13:51 – 06:20:15</div><div class="tl">Remaining phases fail; cooldowns run</div><div class="td">1C, 2A, 2C, 2D, 2E, 3B, NVLink each fail within 3–5 s: “No CUDA devices”. Cooldown 1, Cooldown 2 and Final Idle (120 s each) record seven peers returning to 38–41 °C. BMC HGX GPU/HBM/T-Limit sensors blank from 06:02:10.</div></li>
+    <li><div class="tt">06:20 – 11:08:39</div><div class="tl">Node stays up; driver keeps logging GPU 4 errors</div><div class="td">TLB-invalidation and VA-space teardown failures for GPU 4 (“GPU lost from the bus”) at 11:08:38–39. Last archived kernel line.</div></li>
+    <li><div class="tt">after 11:08</div><div class="tl">Reboot; node did not return</div><div class="td"><span class="badge notmeasured">Not measured</span> No archived source covers the reboot or the non-return. BMC SEL would.</div></li>
+  </ol>
+
+  <h3 id="xid">XID and error events</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Time (UTC)</th><th>Device</th><th>Event</th><th>Documented meaning</th><th>Context in this run</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">2026-10-08 18:58:46</td><td>GPU 4 (97:00)</td><td>Xid 31</td><td>GPU memory page fault — an engine accessed an invalid virtual address. Commonly an application bug; can also indicate hardware/driver issues.</td><td>Process <span class="mono">python</span>, graphics engine, before run 1. Originating workload not archived. Isolated; no recurrence.</td></tr>
+      <tr class="gpu4"><td class="mono">2026-10-09 06:01:44</td><td>GPU 4 (97:00)</td><td>Xid 79</td><td>GPU has fallen off the bus — the driver can no longer reach the device over PCIe. NVIDIA classes it as a hardware/system-level event requiring investigation; not application-caused.</td><td>Raised from the PCIe hot-plug IRQ handler (<span class="mono">irq/123-pciehp</span>) 6 ms after the root port logged Link Down. Device at 96 °C under 1B load.</td></tr>
+      <tr><td class="mono">2026-10-09 06:01:44</td><td>GPUs 0–7 (all)</td><td>Xid 154</td><td>GPU recovery action changed to “Node Reboot Required” — driver-level notification that the node must be rebooted to restore the GPUs.</td><td>Issued for all eight GPUs within 25 ms. Peers continued executing already-launched kernels; new CUDA initialization failed.</td></tr>
+      <tr><td class="mono">06:13:49, 11:08:38</td><td>Node (UVM)</td><td>uvm global fatal error 0x60</td><td>Unified Virtual Memory subsystem fatal error; reboot required.</td><td>Logged when the 1B container tore down and again hours later.</td></tr>
+      <tr><td class="mono">all captures</td><td>All GPUs</td><td>ECC correctable / uncorrectable</td><td>Memory error counters (volatile and aggregate, SRAM and DRAM).</td><td><b>0</b> on every GPU, every sampled interval, including GPU 4’s last sample. Remapped rows 0, pending 0.</td></tr>
+      <tr><td class="mono">run starts</td><td>All GPUs</td><td>PCIe replays / rollovers</td><td>Link-level retry counters.</td><td>0 on every GPU at every capture start, including GPU 4 at 04:35:46. Not sampled during the run.</td></tr>
+      <tr><td class="mono">—</td><td>Host</td><td>PCIe AER</td><td>Advanced Error Reporting (correctable/uncorrectable link errors).</td><td>No AER messages in the captured <span class="mono">dmesg</span>. Absence is not conclusive: AER logging may not have been active.</td></tr>
+    </tbody>
+  </table></div>
+  <details class="more"><summary>Raw kernel log lines (dmesg, uptime-stamped)</summary>
+<pre>[443501.125849] NVRM: Xid (PCI:0000:97:00): 31, pid=376231, name=python, channel 0x00000005, intr 00000000. MMU Fault: ENGINE GRAPHICS HUBCLIENT_SKED faulted @ 0x2_0bbe1000. Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_READ
+[483278.735040] pcieport 0000:96:00.0: pciehp: Slot(105): Link Down
+[483278.735052] pcieport 0000:96:00.0: pciehp: Slot(105): Card not present
+[483278.735477] [drm] [nvidia-drm] [GPU ID 0x00009700] Removing device
+[483278.736069] [drm] [nvidia-drm] [GPU ID 0x00009700] Unloading driver
+[483278.741562] NVRM: Xid (PCI:0000:97:00): 79, pid=1865, name=irq/123-pciehp, GPU has fallen off the bus.
+[483278.741598] NVRM: GPU 0000:97:00.0: GPU has fallen off the bus.
+[483278.741602] NVRM: GPU 0000:97:00.0: GPU serial number is 1650325000848.
+[483278.741614] NVRM: GPU4 krcRcAndNotifyAllChannels_IMPL: RC all channels for critical error 79.
+[483278.765302] NVRM: Xid (PCI:0000:17:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.765794] NVRM: Xid (PCI:0000:3d:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.766266] NVRM: Xid (PCI:0000:5f:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.766738] NVRM: Xid (PCI:0000:70:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.766763] NVRM: Xid (PCI:0000:97:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.767230] NVRM: Xid (PCI:0000:ba:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.767693] NVRM: Xid (PCI:0000:dc:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+[483278.768168] NVRM: Xid (PCI:0000:ed:00): 154, GPU recovery action changed from 0x0 (None) to 0x2 (Node Reboot Required)
+Oct 09 06:01:44 kernel: NVRM: GPU4 _kgspRpcRecvPoll: GSP RM heartbeat timed out
+Oct 09 06:01:44 kernel: NVRM: Attempting to remove device 0000:97:00.0 with non-zero usage count!
+Oct 09 06:13:49 kernel: NVRM: nvGpuOpsReportFatalError: uvm encountered global fatal error 0x60, requiring os reboot to recover.</pre>
+  <p class="small">Slot 105 capability line at boot: <span class="mono">pcieport 0000:96:00.0: pciehp: Slot #105 AttnBtn- PwrCtrl- MRL- AttnInd+ PwrInd+ HotPlug+ Surprise- Interlock- NoCompl+ IbPresDis- LLActRep+</span> — the slot does not advertise surprise-removal support, so an unexpected link-down is handled as device removal.</p>
+  </details>
+
+  <h3>Precursor signals</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Signal</th><th>Observed on GPU 4</th><th>Peers</th><th>Assessment</th></tr></thead>
+    <tbody>
+      <tr><td>Idle junction temperature</td><td>71–82 °C at 0 % util (5 snapshots over 16 h)</td><td>33–44 °C</td><td><span class="badge critical">Precursor present</span> Strong, persistent, visible before any load.</td></tr>
+      <tr><td>Idle HBM temperature</td><td>72–77 °C</td><td>36–44 °C</td><td><span class="badge critical">Precursor present</span> Whole module hot, not a single sensor.</td></tr>
+      <tr><td>Idle power draw</td><td>220–239 W</td><td>188–206 W</td><td><span class="badge serious">Precursor present</span> +30–40 W, consistent with elevated leakage at temperature.</td></tr>
+      <tr><td>Thermal-limit margin (T.Limit)</td><td>6–12 °C at idle; negative under load (BMC −8 °C)</td><td>45–51 °C</td><td><span class="badge critical">Precursor present</span></td></tr>
+      <tr><td>Cumulative thermal-slowdown counters</td><td>37,680 s SW / 406 s HW before run 1; 40,116 / 1,096 s before run 4</td><td>0 s / 0 s</td><td><span class="badge critical">Precursor present</span> Long-standing within the uptime.</td></tr>
+      <tr><td>Clocks under load</td><td>120 MHz floor, throttle reasons 32 / 104</td><td>985–1,114 MHz, reason 4 (power cap)</td><td><span class="badge critical">Present</span></td></tr>
+      <tr><td>ECC correctable / uncorrectable</td><td>0 / 0 throughout, including last sample</td><td>0 / 0</td><td><span class="badge neutral">No precursor</span></td></tr>
+      <tr><td>Remapped rows, retired pages</td><td>0, none pending</td><td>0</td><td><span class="badge neutral">No precursor</span></td></tr>
+      <tr><td>PCIe replays / link width / generation</td><td>0 replays; Gen 5 ×16 at each capture start</td><td>Same</td><td><span class="badge neutral">No precursor at snapshot</span> Not sampled continuously.</td></tr>
+      <tr><td>Xid history</td><td>Xid 31 (MMU fault) 11 h before failure</td><td>None</td><td><span class="badge partial">Possible precursor</span> Single event; could be application-caused.</td></tr>
+      <tr><td>NVLink</td><td>Fabric “Healthy” at snapshots; collective test never ran</td><td>Same</td><td><span class="badge notmeasured">Not measured</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>GPU 4 versus its seven peers</h3>
+  <div id="idle-chart"></div>
+  <div class="tbl-wrap" id="tbl-idle"></div>
+  <p class="tbl-note">Idle-window means from NVML (Phase 0 of each run; R1–R3 windows are 5 s, R4 is 120 s). Provisioning column is the single <span class="mono">nvidia-smi</span> reading. HBM temperature and T.Limit from the <span class="mono">nvidia-smi -q</span> snapshot at each run start.</p>
+
+  <div id="gemm-chart"></div>
+  <div id="r4-timeline"></div>
+  <div id="r1-timeline"></div>
+
+  <div class="tbl-wrap" id="tbl-peer-compare"></div>
+
+  <h3>Impact on the other GPUs and the node</h3>
+  <ul>
+    <li><b>Performance impact before failure: none measurable.</b> Peer GEMM, HBM and inference results with GPU 4 present (R1, R4) match those with GPU 4 excluded (R2, R3) within the run-to-run band. GPU 4’s slow 1A slot lengthened the phase but did not alter peer numbers.</li>
+    <li><b>Thermal impact: none measurable.</b> GPU 4’s neighbours (GPU 5 at BA:00, GPU 6 at DC:00) peaked at 72–75 °C under load and idled at 40–44 °C — the same as in runs where GPU 4 was idle.</li>
+    <li><b>Availability impact: total.</b> Xid 154 on all eight GPUs; CUDA initialization failed node-wide; UVM fatal error; node reboot required. The seven peers were healthy but unusable.</li>
+    <li><b>Chassis telemetry impact.</b> HGX aggregate GPU/HBM/T-Limit sensors stopped reporting 26 s after the event, for the rest of the capture.</li>
+  </ul>
+
+  <h3 id="pcie">The PCIe hypothesis: what is confirmed and what would confirm the rest</h3>
+  <div class="grid-2">
+    <div class="panel">
+      <h4>Confirmed by host-side evidence</h4>
+      <ul>
+        <li>The PCIe hot-plug controller at root port <span class="mono">0000:96:00.0</span> observed the link to slot 105 go down and the card become “not present” at 06:01:44.</li>
+        <li>The NVIDIA driver’s Xid 79 was triggered by that hot-plug interrupt (<span class="mono">irq/123-pciehp</span>), 6 ms later.</li>
+        <li>GPU 4’s NVML telemetry stops at 06:01:43.722 — the same second.</li>
+        <li>At the moment of loss the GPU was at 96 °C under load with a hardware thermal-slowdown flag active, and had been within ~6 °C of that temperature for ~3 minutes.</li>
+      </ul>
+      <h4>Not determinable from host-side evidence</h4>
+      <ul>
+        <li>Whether the link dropped because the GPU module stopped responding (e.g. a protective shutdown or GSP/firmware halt), because of a board power event, or because of the slot, connector or retimer.</li>
+        <li>Whether any PCIe correctable errors preceded the drop (no AER output; replay counters not sampled during the run).</li>
+        <li>Why the node did not return after reboot.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>What would confirm or rule it out</h4>
+      <ol>
+        <li><b>BMC SEL and Redfish logs</b> for 2026-10-09 05:55–06:05 UTC and for the reboot: a GPU over-temperature or power-fault event, a PCIe/retimer event, or a hot-plug event in the SEL would each point to a different cause. <span class="badge notmeasured">Not measured</span></li>
+        <li><b>HMC / HGX baseboard logs</b> (per-GPU power brake, thermal shutdown, PEX/retimer status). <span class="badge notmeasured">Not measured</span></li>
+        <li><b>Post-event <span class="mono">lspci -vvv</span> / <span class="mono">nvidia-smi -q</span> for 97:00.0</b>: whether the device re-enumerates, at what link width/speed, with what replay count and InfoROM XID history.</li>
+        <li><b>Physical inspection</b> of the GPU 4 module: seating, thermal interface, cold-plate contact, local obstruction; and of the slot 105 path.</li>
+        <li><b>Repeat the idle baseline</b> after any intervention: a healthy GPU 4 should idle within a few degrees of GPUs 5 and 6.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= PHASES ======================= -->
+<section id="phases" class="break">
+  <div class="section-kicker">7 · Phase-by-phase results</div>
+  <h2>Phase-by-phase results</h2>
+  <p>Phases are listed in recipe order using run 4 (the only run that executed the sequence); runs 1–3 are folded into the matching phase. Expand a phase for key measurements, expected versus observed behaviour, and the operational reading. “Expected” means what a healthy, uniform node would show — not a V100 figure.</p>
+  <div id="phase-cards"></div>
+</section>
+
+<!-- ======================= SUBSYSTEMS ======================= -->
+<section id="subsystems">
+  <div class="section-kicker">8 · Subsystem assessment</div>
+  <h2>Subsystem assessment</h2>
+  <p>Each row states what the executed phases allow us to say about that subsystem, separately for GPU 4 and for the seven peers. Rows the data does not meaningfully test are marked not measured rather than omitted.</p>
+  <div class="tbl-wrap"><table class="matrix">
+    <thead><tr><th style="width:17%">Subsystem</th><th style="width:14%">Peers (0–3, 5–7)</th><th style="width:14%">GPU 4</th><th>Basis</th></tr></thead>
+    <tbody>
+      <tr><td>Compute (GEMM, inference)</td><td><span class="badge good">Uniform</span></td><td><span class="badge critical">Clamped</span></td><td>Warm-up and 1A GEMM: peers 1,174–1,229 TFLOPS, each GPU repeatable within 0.8 % between the two exposures. GPU 4: 66–72 TFLOPS. 1C/2A inference uniform on peers (0.8 % / 3.1 % spread). GPU 4 not compute-degraded per se — clocks were thermally clamped at 120 MHz.</td></tr>
+      <tr><td>Memory / HBM</td><td><span class="badge good">Uniform, zero ECC</span></td><td><span class="badge neutral">Inconclusive</span></td><td>1B: 6.50 / 7.57 / 6.58 TB/s read/write/copy, 0.2 % spread (six attributed results; seventh completed per telemetry). ECC 0 everywhere; remapped rows 0. GPU 4 allocated 70.4 GB normally but showed 4 % memory-controller utilization at 120 MHz; it fell off the bus before producing a bandwidth figure. Its HBM ran 72–92 °C.</td></tr>
+      <tr><td>Thermal response</td><td><span class="badge good">Normal, stratified</span></td><td><span class="badge critical">Abnormal at idle and load</span></td><td>Peers idle 37–44 °C; peak 62–75 °C at 1,000 W; GPUs 0 and 3 consistently ~10 °C cooler than 1, 2, 5, 6 in every run (positional pattern, stable). GPU 4 idle 71–82 °C, load 88–96 °C, HBM 72–92 °C. Inlet 32–39 °C throughout.</td></tr>
+      <tr><td>Power response</td><td><span class="badge good">Cap-bound as designed</span></td><td><span class="badge serious">Elevated idle, suppressed load</span></td><td>Peers draw 995 W mean at the 1,000 W limit under GEMM/1B (throttle reason 4), 647–758 W mean under inference; instantaneous readings up to 1,324 W. GPU 4: 220–239 W idle (+35 W), 290–345 W under load. Memory power 20 W idle.</td></tr>
+      <tr><td>Clock stability</td><td><span class="badge good">Stable at cap</span></td><td><span class="badge critical">Pinned at 120 MHz</span></td><td>Peers 985–1,114 MHz mean during GEMM (power-limited), 1,949 MHz during 1B, 1,604–1,632 MHz during 2A; memory clock 3,996 MHz constant. GPU 4: 120 MHz within 8 s of every load start; momentary 855–1,320 MHz only when unloaded and briefly cooler.</td></tr>
+      <tr><td>Throttling</td><td><span class="badge good">Power cap only</span></td><td><span class="badge critical">HW + SW thermal</span></td><td>Peers: reason 4 (SW power cap) only; cumulative thermal-slowdown counters 0 s. GPU 4: reasons 32 and 104 (HW slowdown + HW thermal + SW thermal) in every loaded sample; 40,116 s SW / 1,096 s HW cumulative.</td></tr>
+      <tr><td>PCIe</td><td><span class="badge neutral">Gen 5 ×16, no errors at snapshot</span></td><td><span class="badge critical">Link down 06:01:44</span></td><td>Replays 0, Gen 5 ×16 for all eight at each capture start. GPU 4: kernel pciehp Link Down / Card not present at slot 105; Xid 79. Link-level error history during the run not sampled; AER absent from log.</td></tr>
+      <tr><td>NVLink / collectives</td><td><span class="badge notmeasured">Not measured</span></td><td><span class="badge notmeasured">Not measured</span></td><td>Fabric state “Healthy” at each snapshot. The NCCL collective phase never executed (failed after the event). No bandwidth or CRC data.</td></tr>
+      <tr><td>Cooling / fans (chassis)</td><td colspan="2"><span class="badge warn">Flat; vendor policy question</span></td><td>15 system fans 11,583–11,751 RPM mean in all runs; no response to GPU 4 at 96 °C or to HGX T-Limit −8 °C. PSU fans ~11.4 k; PSU status codes constant. <span class="mono">MB_FAN2</span> 0 RPM, status <span class="mono">cr</span>, all captures.</td></tr>
+      <tr><td>Workload stability</td><td><span class="badge good">All completed</span></td><td><span class="badge critical">Completed slowly, then hard failure</span></td><td>Peers completed every launched workload (1C ×2, 2A, warm-up, 1A, 1B). GPU 4 completed 1C (R1), warm-up and 1A at ~6 % speed with correct outputs; failed in 1B.</td></tr>
+      <tr><td>Error events</td><td><span class="badge neutral">Xid 154 (induced)</span></td><td><span class="badge critical">Xid 31, 79, 154</span></td><td>See <a href="#xid">XID table</a>. No ECC anywhere.</td></tr>
+      <tr><td>Recovery / cooldown</td><td><span class="badge good">≤ 60 s to idle</span></td><td><span class="badge notmeasured">No data</span></td><td>R4 cooldown after 1B: peers 43–51 °C → 38–41 °C in 60 s; flat by 120 s. Final idle within 1 °C of initial idle. GPU 4 produced no post-load telemetry in any run that would show a decay curve (R1 cooldown was 5 s: GPU 4 stayed at 89–90 °C for all of it).</td></tr>
+      <tr><td>Peer-relative divergence</td><td><span class="badge good">≤ 2.2 % GEMM, ≤ 3.1 % inference</span></td><td><span class="badge critical">−94 %</span></td><td>GPU 4 is a single, extreme outlier on every loaded metric and on every idle thermal metric.</td></tr>
+      <tr><td>Repeatability across runs</td><td><span class="badge good">Within 0.8 % (GEMM)</span></td><td><span class="badge confirmed">Consistently abnormal</span></td><td>Only GEMM ran twice with identical configuration (warm-up vs 1A). 1C R1 vs R2 used different batch/instance settings and are not compared. GPU 4’s idle condition reproduced in all five snapshots.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ======================= INTEGRATED ======================= -->
+<section id="integrated">
+  <div class="section-kicker">9 · Integrated workload behaviour</div>
+  <h2>Integrated versus isolated workloads</h2>
+  <p>Two integrated LLM workloads ran (1C twice, 2A once) alongside two isolated microbenchmarks (GEMM twice, HBM bandwidth once). Together they allow three observations that neither class alone would support:</p>
+  <ul>
+    <li><b>GPU 4’s problem is not compute-specific or memory-specific.</b> It appeared identically in the pure-compute GEMM (6 % of peers), the pure-memory bandwidth test (4 % memory-controller utilization), and the integrated inference workload (6 % of peer tokens/s). The common factor in all three is the 120 MHz thermal clamp. In the recipe’s diagnostic logic, “everything moves together, with thermal flags” points to the thermal path or power delivery, not to the HBM or tensor cores.</li>
+    <li><b>Peer behaviour under integrated load matches isolated load.</b> Inference drove peers to 647–758 W and 1,460–1,630 MHz with the same 0.8–3.1 % uniformity seen in GEMM and bandwidth. No GPU became an outlier only under combined load — the signature the recipe would flag as a latent interaction problem is absent.</li>
+    <li><b>Integrated workloads tolerated the slow device; the isolated bandwidth test is where it died.</b> vLLM simply produced fewer tokens on GPU 4. The bandwidth kernel kept GPU 4 at 100 % utilization and 93–96 °C for three minutes before the link dropped. This is consistent with sustained near-limit temperature being the proximate stress, but the data cannot show that another workload would not have produced the same outcome.</li>
+  </ul>
+  <p>Silent-data-corruption probing in both 1C runs (3 repetitions × 64 tokens per GPU, cross-GPU majority vote) showed 100 % agreement for all GPUs, including GPU 4 in run 1. GPU 4 produced correct results slowly; it did not produce wrong results.</p>
+</section>
+
+<!-- ======================= BOUNDARY ======================= -->
+<section id="boundary">
+  <div class="section-kicker">10 · Boundary behaviour</div>
+  <h2>Behaviour near operating limits</h2>
+  <div class="callout neutral">
+    <div class="t">Tier 3 boundary probes did not execute</div>
+    <p>3A (near-limit inference) was skipped by configuration; 3B (sustained power) and NVLink failed to start after the GPU 4 event. No GPU on this node has been characterized near its memory or sustained-power boundary. The statements below concern limits that were <em>encountered</em>, not probed.</p>
+  </div>
+  <div class="grid-2">
+    <div class="panel">
+      <h4>Peers — the power limit</h4>
+      <p>The only boundary the seven peers reached was the 1,000 W power cap, under GEMM and HBM load. The transition was gradual and controlled: clocks settled at 985–1,114 MHz (GEMM) or 1,949 MHz (bandwidth) with the SW-power-cap flag set, throughput was flat (per-second TFLOPS standard deviation 0.4–1.0 %; one GPU, GPU 1, showed a brief 1,334 TFLOPS spike), and temperature stayed 25–30 °C below the slowdown limit. After load removal they returned to idle temperature within 60 s. This is the expected behaviour of a healthy B200 under a tensor-core power virus.</p>
+      <p><b>Practical constraint identified:</b> none beyond the configured power limit. Repeatability of this limit behaviour across the two GEMM exposures was within 0.8 %.</p>
+    </div>
+    <div class="panel">
+      <h4>GPU 4 — the thermal limit</h4>
+      <p>GPU 4 reached its thermal slowdown limit <em>before load</em> (T.Limit margin 6–12 °C at idle) and crossed it within two seconds of any load. The transition was abrupt (clock 855 → 120 MHz in 8 s) and total: the device stayed at the floor for every loaded second thereafter. Temperature nevertheless continued to climb at the floor clock (88 → 96 °C over the 1B exposure), indicating the clamp could not hold the junction below the limit. The eventual exit was a hard PCIe link loss, not a graceful shutdown. No recovery or cooldown behaviour is available.</p>
+      <p><b>Practical constraint identified:</b> GPU 4 has no usable operating envelope in its current state.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= BEYOND PASS/FAIL ======================= -->
+<section id="beyond" class="break">
+  <div class="section-kicker">11 · Findings beyond pass/fail</div>
+  <h2>What a conventional report would have missed</h2>
+  <div class="grid-2">
+    <div class="panel">
+      <h4>A device that was anomalous before any load</h4>
+      <p>A pass/fail burn-in starts the clock when the stress begins. The decisive evidence here — 35–40 °C excess idle temperature, 35 W excess idle draw, 10.5 h of pre-existing thermal-slowdown time — was all available at 0 % utilization. The two-minute idle baseline in the recipe exists for exactly this reason.</p>
+    </div>
+    <div class="panel">
+      <h4>100 % utilization at 6 % output</h4>
+      <p>GPU 4 reported 90–100 % GPU utilization throughout 1C and GEMM while delivering ~6 % of peer throughput. Utilization, ECC and XID — the usual health-check trio — were all “fine” until the moment the device vanished. Only clock, temperature, throttle reason and peer-relative throughput exposed the condition.</p>
+    </div>
+    <div class="panel">
+      <h4>Hard failure without the recipe’s usual precursors</h4>
+      <p>ECC counts, bandwidth droop and clock drift are the degradation signatures the recipe is built to catch. GPU 4 showed none — it never ran un-clamped long enough to show them. The lesson for the methodology: idle thermal margin and thermal-slowdown counters belong in the pre-assessment gate, ahead of any load.</p>
+    </div>
+    <div class="panel">
+      <h4>Peer fingerprints are stable and small</h4>
+      <p>GPU 2 is reproducibly ~2.5 % below the peer mean on GEMM and GPUs 3 and 5 reproducibly highest; GPUs 0 and 3 run ~10 °C cooler than the others in every run. None of this is a defect; all of it is the baseline a future assessment should be compared against. A pass/fail report discards it.</p>
+    </div>
+    <div class="panel">
+      <h4>The node, not the GPU, is the unit of failure</h4>
+      <p>One device leaving the bus produced Xid 154 on all eight, a UVM fatal error, and a reboot requirement; the node then did not return. Capacity planning that counts this as “7 of 8 GPUs available” is wrong for this platform/driver combination.</p>
+    </div>
+    <div class="panel">
+      <h4>Chassis cooling did not react</h4>
+      <p>Fans stayed flat while the HGX board reported a negative thermal margin. Whether by design or not, a per-GPU thermal fault on this platform is not mitigated by the chassis. That is relevant to how aggressively a cluster should fence a GPU that idles hot.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= GUIDANCE ======================= -->
+<section id="guidance">
+  <div class="section-kicker">12 · Deployment and operational guidance</div>
+  <h2>Deployment and operational guidance</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:24%">Question</th><th>Guidance</th><th style="width:18%">Basis</th></tr></thead>
+    <tbody>
+      <tr><td>Is the node ready for deployment?</td><td><b>No.</b> The node is down and the reason it did not return after reboot is unknown. GPU 4 must be removed, repaired or replaced before the node is re-provisioned.</td><td>F3, F4; no post-reboot data</td></tr>
+      <tr><td>Is GPU 4 usable?</td><td><b>No.</b> Remove from service. Vendor inspection of the module, its thermal interface/cold-plate contact and the slot 105 PCIe path. Do not re-admit until it idles within a few degrees of its neighbours with a T.Limit margin comparable to peers.</td><td>F1, F2, F3</td></tr>
+      <tr><td>Are GPUs 0–3, 5–7 usable?</td><td><b>Yes, once the node is restored</b>, for inference and compute-bound work, with no restrictions indicated by Tier 1 and 2A results. Training (2B), near-limit memory (3A), sustained-power (3B) and NVLink collective behaviour are <em>untested</em>; schedule the full recipe before placing multi-GPU training on the node.</td><td>F5; coverage matrix</td></tr>
+      <tr><td>Suitable workload types</td><td>Single-GPU and data-parallel inference; GEMM-heavy compute. Multi-GPU NVLink-dependent workloads: untested.</td><td>Phases 1, 2, 3, 4, 6</td></tr>
+      <tr><td>Workloads or conditions requiring caution</td><td>Any workload scheduled onto a GPU whose idle temperature exceeds its peers by more than ~10 °C. On this platform a single clamped GPU can take the node down.</td><td>F1, F4</td></tr>
+      <tr><td>Environmental / operational constraints</td><td>Inlet 32–39 °C was adequate for the seven peers (peak 75 °C). Confirm the chassis fan-control policy with Supermicro: fans did not respond to a 96 °C GPU.</td><td>F6</td></tr>
+      <tr><td>Signals to monitor</td><td>Per-GPU idle temperature and idle power relative to the node median; <span class="mono">nvidia-smi -q</span> T.Limit margin; Clocks Event Reasons Counters (SW/HW thermal slowdown); throttle-reason bitmask under load; BMC <span class="mono">HGX_T-Limit</span>. These flagged GPU 4 while ECC, XID and utilization did not.</td><td>F1, F2</td></tr>
+      <tr><td>Tests to repeat</td><td>After repair: 2 min idle baseline → full recipe including 2B, 3A, 3B, NVLink, with 120 s cooldowns. Reference values: GEMM 1,177–1,229 TFLOPS; HBM 6.50/7.57/6.58 TB/s; 1C 15.3–15.4 k tok/s (R2 config); 2A 4.05–4.18 k tok/s; idle 37–44 °C.</td><td>F5</td></tr>
+      <tr><td>Maintenance / diagnostic follow-up</td><td>BMC SEL + Redfish log review (highest priority); HGX/HMC logs; <span class="mono">nvidia-bug-report</span>; physical inspection of GPU 4 and slot 105; explanation of <span class="mono">MB_FAN2 = 0 RPM (cr)</span>.</td><td>§6 PCIe hypothesis</td></tr>
+      <tr><td>Considerations for teams sharing this node</td><td>Until GPU 4 is addressed, assume node-level availability risk, not 1/8 capacity loss. Fence hot-idle GPUs at the scheduler before admitting work.</td><td>F4</td></tr>
+      <tr><td>Unresolved questions</td><td>(1) Physical cause of GPU 4’s thermal condition. (2) Cause of the PCIe link-down. (3) Why the node did not return after reboot. (4) Context of Xid 31 on 2026-10-08. (5) Whether <span class="mono">MB_FAN2</span> is populated. (6) Platform fan-control policy under a hot-GPU condition.</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ======================= APPENDIX ======================= -->
+<section id="appendix" class="break">
+  <div class="section-kicker">13 · Evidence appendix</div>
+  <h2>Evidence appendix</h2>
+
+  <h3>Peer results by workload</h3>
+  <div class="tbl-wrap" id="tbl-gemm"></div>
+  <p class="tbl-note">Sustained TFLOPS = mean of the per-second samples excluding warm-up iterations, as reported by the workload. Warm-up phase: 180 s concurrent on 8 GPUs. 1A: 240 s sequential, one GPU at a time.</p>
+
+  <div class="tbl-wrap" id="tbl-1b"><table>
+    <thead><tr><th>1B result block (unattributed)</th><th class="num">Read GB/s</th><th class="num">Write GB/s</th><th class="num">Copy GB/s</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td class="num">6495.1</td><td class="num">7567.1</td><td class="num">6573.9</td></tr>
+      <tr><td>2</td><td class="num">6504.6</td><td class="num">7566.5</td><td class="num">6575.4</td></tr>
+      <tr><td>3</td><td class="num">6507.0</td><td class="num">7567.3</td><td class="num">6580.9</td></tr>
+      <tr><td>4</td><td class="num">6509.6</td><td class="num">7569.3</td><td class="num">6572.1</td></tr>
+      <tr><td>5</td><td class="num">6506.6</td><td class="num">7567.3</td><td class="num">6583.9</td></tr>
+      <tr><td>6</td><td class="num">6499.4</td><td class="num">7566.5</td><td class="num">6572.3</td></tr>
+      <tr><td class="dim">7th peer</td><td class="dim" colspan="3">Completed per NVML (98 % util for 900 s) but result not printed before the container aborted</td></tr>
+      <tr class="gpu4"><td>GPU 4</td><td colspan="3">Off bus at 06:01:44; no result</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tbl-note">Sustained values from the run log; the result JSON is empty because the container exited non-zero. Blocks are printed in completion order and cannot be mapped to GPU index.</p>
+
+  <div id="tbl-inf"></div>
+
+  <div id="cooldown-chart"></div>
+  <div id="bmc-chart"></div>
+
+  <h3>Run inventory and phase tables</h3>
+  <div id="run-phase-tables"></div>
+
+  <h3>Data-quality notes</h3>
+  <ul>
+    <li>NVML cadence ~0.5 s per GPU (not the 1 s in the recipe); ECC and throttle-reason fields populated on ~every 10th row.</li>
+    <li>Instantaneous power readings exceed the 1,000 W limit (up to 1,324 W) on single samples; the limit is enforced on a moving average. Means under load were 995 W.</li>
+    <li><span class="mono">phases.tsv</span> <span class="mono">duration_s</span> is wall time; manifest <span class="mono">phase_durations_s</span> is the configured per-GPU or per-phase target. 1A in R4 ran 2,825 s wall because GPU 4’s slot was 860 s.</li>
+    <li>Result-file paths in the manifests are container-absolute; files were read from the local <span class="mono">results/</span> directory.</li>
+    <li>R1 and R2 1C configurations differ (batch 1024 × 1 instance × 420 s vs 448 × 2 × 180 s); they are not a repeatability pair.</li>
+    <li>The 2A metadata’s <span class="mono">method_deviation_note</span> references vLLM 0.5.4 pins; the container actually ran vLLM 0.29.0. The note describes the reason for GPTQ-over-AWQ, not the executed stack.</li>
+    <li>BMC <span class="mono">STATUS_*</span> columns are hex sensor codes (<span class="mono">C0h</span>…), constant across all runs.</li>
+    <li>The industry example report in the source folder (Velerity, 2026-06-17) describes a different machine (an A100 DGX); it is used only as a format reference in §14.</li>
+  </ul>
+
+  <h3>Metric definitions</h3>
+  <dl class="defs">
+    <dt>Sustained TFLOPS</dt><dd>Mean FP16 tensor-core throughput over the scored window of a GEMM run, excluding warm-up iterations. 1 TFLOPS = 10¹² floating-point operations per second.</dd>
+    <dt>Tokens/s, TTFT, ITL</dt><dd>Inference throughput per GPU per second; time-to-first-token per prompt; inter-token latency percentiles per prompt (p50/p95/p99). Scored window excludes the configured ramp (60 s or 120 s).</dd>
+    <dt>Throttle reason (NVML bitmask)</dt><dd>1 = GPU idle · 4 = SW power cap · 8 = HW slowdown · 32 = SW thermal slowdown · 64 = HW thermal slowdown. 104 = 8 + 32 + 64.</dd>
+    <dt>T.Limit margin</dt><dd><span class="mono">nvidia-smi -q</span> “GPU T.Limit Temp”: degrees of headroom remaining before the thermal slowdown threshold. Negative means over the limit.</dd>
+    <dt>Clocks Event Reasons Counters</dt><dd>Cumulative microseconds the GPU has spent in each slowdown state since driver load.</dd>
+    <dt>Xid</dt><dd>NVIDIA driver error-event code written to the kernel log. 31 memory page fault · 79 fallen off the bus · 154 recovery action changed.</dd>
+    <dt>HGX_GPU_Temp / HGX_T-Limit (BMC)</dt><dd>HGX baseboard aggregate sensors as exposed over IPMI; behave as the maximum GPU temperature and minimum thermal margin across the board.</dd>
+    <dt>Peer band</dt><dd>In the timeline charts, the shaded region spans the minimum to maximum of GPUs 0–3, 5–7 at each time step; the line inside it is their median.</dd>
+  </dl>
+
+  <h3>Source files</h3>
+  <pre>assessment_26-10-08_19-29-42/            R1  1C, 8 GPUs    (nvml 20,120 rows · bmc 538 rows · workload8 metadata/throughput/per_prompt · score.json)
+assessment_26-10-09_02-49-59_1C/         R2  1C, 7 GPUs    (nvml 6,576 · bmc 168 · workload8 · run_all.log)
+assessment_26-10-09_03-47-49_2A/         R3  2A, 7 GPUs    (nvml 7,464 · bmc 191 · workload9 · run_all.log)
+assessment_26-10-09_04-35-46_full_xid/   R4  full profile  (nvml 97,948 · bmc 2,737 · workload1 ×2 · 8 *_failed.json · run_all_loop1.log)
+provision/26-10-08_14-20_run_provision_and1C.log   provisioning + nvidia-smi snapshot + unarchived 1C run
+provision/26-10-09_dmesg_Xid.log, 26-10-09_journalctl_Xid.log            Xid extracts
+provision/26-10-09_dmesg_XidPciError.log, 26-10-09_journalctl_XidPciError.log   full kernel logs (38,682 / 10,932 lines)
+provision/26_10_09-check_baselineb200.log           host software baseline
+26-05_stress_recipe_V100_Final.docx                 recipe document (methodology reference only)</pre>
+</section>
+
+<!-- ======================= COMPARISON ======================= -->
+<section id="compare">
+  <div class="section-kicker">14 · Comparison</div>
+  <h2>How this report goes beyond a conventional burn-in report</h2>
+  <p>The industry example supplied with the source material is a one-page vendor burn-in report: asset identity, component inventory, a 30-minute stress run summarized as maximum/average temperature, power and fan speed, a checklist of health checks (ECC 0, XID 0, NVSM healthy), and a single PASS. It is a competent instance of standard practice. Applied to this node it would have had to answer one question — did it break? — and GPU 4 would have answered it. What follows is what the conventional format could not have said.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th style="width:24%">Question an operator asks</th><th style="width:30%">Conventional burn-in report</th><th>This assessment</th></tr></thead>
+    <tbody>
+      <tr><td>Did it break?</td><td>“FAIL — XID 79 on GPU 4.”</td><td>Same event, placed in a 16-hour timeline with three independent clocks (NVML, BMC, kernel), the exact phase and second, and the kernel’s PCIe hot-plug evidence that precedes the Xid.</td></tr>
+      <tr><td>Was anything wrong before it broke?</td><td>Not addressed — stress starts the clock.</td><td>Yes: 71–82 °C idle, +35 W idle, 10.5 h of pre-existing thermal slowdown, Xid 31. Detectable in a two-minute idle snapshot.</td></tr>
+      <tr><td>How hot does it run?</td><td>Max/avg GPU temperature for the run (would read 96 °C max — dominated by GPU 4, saying nothing about the other seven).</td><td>Per-GPU idle and peak temperatures, HBM temperature, thermal-limit margin, positional stratification among peers, cooldown decay curves, idle-to-idle drift, and chassis fan response.</td></tr>
+      <tr><td>Is performance right?</td><td>Not measured.</td><td>Quantified per subsystem and per GPU: GEMM, HBM read/write/copy, two inference scales with latency percentiles, with uniformity bands; GPU 4 at 6 % of peers while reporting 100 % utilization.</td></tr>
+      <tr><td>Are the GPUs consistent with each other?</td><td>Not addressed.</td><td>Central to the method: ±2.2 % GEMM, 0.2 % HBM, 0.8–3.1 % inference among peers; one extreme outlier; stable per-device fingerprints (GPU 2 low, GPUs 3/5 high; GPUs 0/3 cool).</td></tr>
+      <tr><td>What limits the machine?</td><td>Not addressed.</td><td>Peers: the 1,000 W power cap, reached gracefully. GPU 4: the thermal limit, reached before load. Memory and NVLink boundaries explicitly marked untested.</td></tr>
+      <tr><td>Is the behaviour repeatable?</td><td>Not addressed.</td><td>GEMM repeated within 0.8 % per GPU across two exposures; GPU 4’s condition reproduced in five snapshots; single-run limits declared where a phase ran once.</td></tr>
+      <tr><td>What did the failure do to the rest of the node?</td><td>Not addressed.</td><td>Xid 154 on all eight GPUs, CUDA unavailable node-wide, UVM fatal error, BMC HGX sensors blank, node did not return — with the peers shown to be unaffected in performance and temperature.</td></tr>
+      <tr><td>What should I do next?</td><td>“—” or “RMA”.</td><td>Ranked actions with the evidence each would add: SEL/Redfish review, physical inspection of GPU 4 and slot 105, fan-policy confirmation, re-baseline criteria, and the specific signals to monitor fleet-wide.</td></tr>
+      <tr><td>How confident is each statement?</td><td>Binary.</td><td>Severity and confidence stated separately per finding; claims made to the vendor verified individually, including a unit error we introduced ourselves.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The conventional report answers “ship it?” for a point in time. This assessment additionally produces the per-GPU, per-subsystem fingerprint that makes future change measurable — which is the recipe’s purpose as the input to a health passport.</p>
+</section>
+
+<footer class="foot">
+  <p>Tensor Machines · Prepared for the Supermicro JumpStart program · Node s946907x5206414 · Data 2026-10-08/09 UTC · Report 2026-10-16. All numbers are reproducible from the listed source files; derived series are in <span class="mono">data.js</span>. This report makes no determination of physical root cause; see §6 for the evidence that would.</p>
+</footer>
+
+</main>
+</div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<script src="data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
